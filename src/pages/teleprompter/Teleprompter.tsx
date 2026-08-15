@@ -7,7 +7,6 @@ import {
   Mic,
   Play,
   Plus,
-  Settings,
   Sparkles,
   User,
   Video,

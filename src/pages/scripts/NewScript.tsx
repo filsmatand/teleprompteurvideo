@@ -13,14 +13,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { supabase } from "../../lib/supabase";
 
-interface Script {
-  id: string;
-  user_id: string;
-  title: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-}
+
 
 export default function NewScript() {
   const navigate = useNavigate();

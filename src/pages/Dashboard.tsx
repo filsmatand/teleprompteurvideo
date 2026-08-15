@@ -5,7 +5,6 @@ import {
   MoreHorizontal,
   Clock3,
   Search,
-  User,
   Loader2,
 } from "lucide-react";
 
