@@ -2,141 +2,374 @@ import {
   ArrowLeft,
   Check,
   FileText,
+  Loader2,
   Mic,
   Play,
-  Sparkles,
   WandSparkles,
 } from "lucide-react";
 
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+
+import { supabase } from "../../lib/supabase";
+
+interface Script {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function NewScript() {
   const navigate = useNavigate();
+  const { id } = useParams();
+
+  const isEditing = Boolean(id);
+
+  /* ================================================= */
+  /* STATE */
+  /* ================================================= */
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [category, setCategory] = useState("Présentation");
+
   const [saved, setSaved] = useState(false);
-  const [scripts, setScripts] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingScript, setIsLoadingScript] = useState(
+    isEditing
+  );
 
-  const categories = [
-    "Présentation",
-    "TikTok",
-    "YouTube",
-    "Instagram",
-    "Publicité",
-    "Formation",
-    "Storytelling",
-    "Autre",
-  ];
+  const [error, setError] = useState("");
 
-  /* -------------------------------- */
-  /* CHARGER LES SCRIPTS */
-  /* -------------------------------- */
+  /* ================================================= */
+  /* CHARGER LE SCRIPT SI MODIFICATION */
+  /* ================================================= */
 
   useEffect(() => {
-    const savedScripts = localStorage.getItem(
-      "creatorflow_scripts"
-    );
-
-    if (savedScripts) {
-      try {
-        setScripts(JSON.parse(savedScripts));
-      } catch {
-        setScripts([]);
-      }
+    if (id) {
+      loadScript(id);
     }
-  }, []);
+  }, [id]);
 
-  /* -------------------------------- */
-  /* SAUVEGARDER */
-  /* -------------------------------- */
+  /* ================================================= */
+  /* LOAD SCRIPT */
+  /* ================================================= */
 
-  const handleSave = () => {
-    if (!title.trim() || !content.trim()) {
-      alert("Veuillez remplir le titre et le texte.");
+  const loadScript = async (scriptId: string) => {
+    setIsLoadingScript(true);
+    setError("");
+
+    try {
+      /* --------------------------------------------- */
+      /* UTILISATEUR */
+      /* --------------------------------------------- */
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      /* --------------------------------------------- */
+      /* SCRIPT */
+      /* --------------------------------------------- */
+
+      const {
+        data,
+        error: scriptError,
+      } = await supabase
+        .from("scripts")
+        .select(
+          "id, user_id, title, content, created_at, updated_at"
+        )
+        .eq("id", scriptId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (scriptError) {
+        throw scriptError;
+      }
+
+      if (!data) {
+        throw new Error(
+          "Script introuvable."
+        );
+      }
+
+      setTitle(data.title || "");
+      setContent(data.content || "");
+
+    } catch (err: any) {
+      console.error(
+        "Erreur chargement script :",
+        err
+      );
+
+      setError(
+        err?.message ||
+          "Impossible de charger ce script."
+      );
+    } finally {
+      setIsLoadingScript(false);
+    }
+  };
+
+  /* ================================================= */
+  /* SAVE SCRIPT */
+  /* ================================================= */
+
+  const handleSave = async () => {
+    setError("");
+    setSaved(false);
+
+    /* --------------------------------------------- */
+    /* VALIDATION */
+    /* --------------------------------------------- */
+
+    if (!title.trim()) {
+      setError(
+        "Veuillez entrer un titre."
+      );
       return;
     }
 
-    const script = {
-      id: Date.now(),
-      title: title.trim(),
-      content: content.trim(),
-      category,
-      createdAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem(
-      "creatorflow_current_script",
-      JSON.stringify(script)
-    );
-
-    const existingScripts =
-      localStorage.getItem("creatorflow_scripts");
-
-    let currentScripts = [];
-
-    if (existingScripts) {
-      try {
-        currentScripts = JSON.parse(existingScripts);
-      } catch {
-        currentScripts = [];
-      }
-    }
-
-    const updatedScripts = [
-      script,
-      ...currentScripts.filter(
-        (item) => item.id !== script.id
-      ),
-    ];
-
-    localStorage.setItem(
-      "creatorflow_scripts",
-      JSON.stringify(updatedScripts)
-    );
-
-    setScripts(updatedScripts);
-    setSaved(true);
-
-    setTimeout(() => {
-      setSaved(false);
-    }, 2000);
-  };
-
-  /* -------------------------------- */
-  /* DÉMARRER LA VIDÉO */
-  /* -------------------------------- */
-
-  const handleStartVideo = () => {
     if (!content.trim()) {
-      alert("Écrivez d'abord votre script.");
+      setError(
+        "Veuillez écrire votre script."
+      );
       return;
     }
 
-    const script = {
-      id: Date.now(),
-      title: title.trim() || "Nouveau script",
-      content: content.trim(),
-      category,
-      createdAt: new Date().toISOString(),
-    };
+    setIsLoading(true);
 
-    localStorage.setItem(
-      "creatorflow_current_script",
-      JSON.stringify(script)
-    );
+    try {
+      /* --------------------------------------------- */
+      /* USER */
+      /* --------------------------------------------- */
 
-    navigate("/recordings");
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      /* --------------------------------------------- */
+      /* UPDATE */
+      /* --------------------------------------------- */
+
+      if (id) {
+        const {
+          error: updateError,
+        } = await supabase
+          .from("scripts")
+          .update({
+            title: title.trim(),
+            content: content.trim(),
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", id)
+          .eq("user_id", user.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+      }
+
+      /* --------------------------------------------- */
+      /* INSERT */
+      /* --------------------------------------------- */
+
+      else {
+        const {
+          error: insertError,
+        } = await supabase
+          .from("scripts")
+          .insert({
+            user_id: user.id,
+            title: title.trim(),
+            content: content.trim(),
+          });
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+
+      /* --------------------------------------------- */
+      /* SUCCESS */
+      /* --------------------------------------------- */
+
+      setSaved(true);
+
+      setTimeout(() => {
+        setSaved(false);
+      }, 2000);
+
+    } catch (err: any) {
+      console.error(
+        "Erreur sauvegarde :",
+        err
+      );
+
+      setError(
+        err?.message ||
+          "Impossible de sauvegarder le script."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  /* -------------------------------- */
+  /* ================================================= */
+  /* START VIDEO */
+  /* ================================================= */
+
+  const handleStartVideo = async () => {
+    setError("");
+
+    if (!content.trim()) {
+      setError(
+        "Écrivez d'abord votre script."
+      );
+      return;
+    }
+
+    /*
+      Avant de lancer l'enregistrement,
+      on sauvegarde automatiquement le script.
+    */
+
+    setIsLoading(true);
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      let scriptId = id;
+
+      /* --------------------------------------------- */
+      /* SI SCRIPT EXISTANT */
+      /* --------------------------------------------- */
+
+      if (id) {
+        const {
+          error: updateError,
+        } = await supabase
+          .from("scripts")
+          .update({
+            title:
+              title.trim() ||
+              "Nouveau script",
+            content: content.trim(),
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", id)
+          .eq("user_id", user.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+      }
+
+      /* --------------------------------------------- */
+      /* NOUVEAU SCRIPT */
+      /* --------------------------------------------- */
+
+      else {
+        const {
+          data,
+          error: insertError,
+        } = await supabase
+          .from("scripts")
+          .insert({
+            user_id: user.id,
+            title:
+              title.trim() ||
+              "Nouveau script",
+            content: content.trim(),
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          throw insertError;
+        }
+
+        scriptId = data.id;
+      }
+
+      /* --------------------------------------------- */
+      /* ENREGISTREMENT */
+      /* --------------------------------------------- */
+
+      navigate(
+        `/recordings?script=${scriptId}`
+      );
+
+    } catch (err: any) {
+      console.error(
+        "Erreur démarrage vidéo :",
+        err
+      );
+
+      setError(
+        err?.message ||
+          "Impossible de démarrer l'enregistrement."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /* ================================================= */
   /* EXEMPLE */
-  /* -------------------------------- */
+  /* ================================================= */
 
   const insertExample = () => {
-    setTitle("Présentation de mon projet");
+    setTitle(
+      "Présentation de mon projet"
+    );
 
     setContent(
       `Bonjour à tous !
@@ -151,35 +384,73 @@ C'est simple, rapide et pensé pour les créateurs.
 
 Merci d'avoir regardé cette vidéo !`
     );
+
+    setError("");
   };
 
-  /* -------------------------------- */
-  /* OUVRIR UN SCRIPT */
-  /* -------------------------------- */
-
-  const openScript = (script) => {
-    setTitle(script.title);
-    setContent(script.content);
-    setCategory(script.category || "Présentation");
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  /* -------------------------------- */
-  /* STATISTIQUES */
-  /* -------------------------------- */
+  /* ================================================= */
+  /* STATISTICS */
+  /* ================================================= */
 
   const wordCount = content.trim()
-    ? content.trim().split(/\s+/).length
+    ? content
+        .trim()
+        .split(/\s+/)
+        .length
     : 0;
 
-  const characterCount = content.length;
+  const characterCount =
+    content.length;
+
+  /* ================================================= */
+  /* LOADING SCRIPT */
+  /* ================================================= */
+
+  if (isLoadingScript) {
+    return (
+      <div
+        className="
+          flex
+          min-h-screen
+          items-center
+          justify-center
+          bg-[#f5f5f5]
+        "
+      >
+        <div className="flex flex-col items-center">
+
+          <Loader2
+            size={28}
+            className="animate-spin"
+          />
+
+          <p
+            className="
+              mt-4
+              text-sm
+              text-gray-400
+            "
+          >
+            Chargement du script...
+          </p>
+
+        </div>
+      </div>
+    );
+  }
+
+  /* ================================================= */
+  /* RENDER */
+  /* ================================================= */
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] text-[#151515]">
+    <div
+      className="
+        min-h-screen
+        bg-[#f5f5f5]
+        text-[#151515]
+      "
+    >
 
       {/* ========================================= */}
       {/* HEADER */}
@@ -196,6 +467,7 @@ Merci d'avoir regardé cette vidéo !`
           backdrop-blur-2xl
         "
       >
+
         <div
           className="
             mx-auto
@@ -210,13 +482,21 @@ Merci d'avoir regardé cette vidéo !`
           "
         >
 
-          {/* GAUCHE */}
+          {/* LEFT */}
 
-          <div className="flex items-center gap-3">
+          <div
+            className="
+              flex
+              items-center
+              gap-3
+            "
+          >
 
             <button
               type="button"
-              onClick={() => navigate("/dashboard")}
+              onClick={() =>
+                navigate("/dashboard")
+              }
               className="
                 flex
                 h-10
@@ -238,48 +518,59 @@ Merci d'avoir regardé cette vidéo !`
             </button>
 
             <div>
-              <h1 className="text-sm font-semibold tracking-tight">
-                Nouveau script
+
+              <h1
+                className="
+                  text-sm
+                  font-semibold
+                  tracking-tight
+                "
+              >
+                {isEditing
+                  ? "Modifier le script"
+                  : "Nouveau script"}
               </h1>
 
-              <p className="hidden text-[11px] text-gray-400 sm:block">
+              <p
+                className="
+                  hidden
+                  text-[11px]
+                  text-gray-400
+                  sm:block
+                "
+              >
                 Préparez votre prochaine vidéo
               </p>
+
             </div>
+
           </div>
 
           {/* LOGO */}
 
-          <div className="flex items-center gap-2">
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+            "
+          >
 
-            <div
+            <img
+              src="/images/logo.png"
+              alt="LunaCreator"
               className="
-                flex
-                h-9
-                w-9
-                items-center
-                justify-center
-                rounded-xl
-                bg-black
-                text-white
-                shadow-lg
+                h-8
+                w-auto
+                object-contain
               "
-            >
-              <Sparkles size={15} />
-            </div>
-
-            <span className="hidden text-sm font-bold sm:block">
-              Creator
-              <span className="text-[#7041e8]">
-                Flow
-              </span>
-            </span>
+            />
 
           </div>
 
         </div>
-      </header>
 
+      </header>
 
       {/* ========================================= */}
       {/* MAIN */}
@@ -303,7 +594,14 @@ Merci d'avoir regardé cette vidéo !`
 
         <section className="mb-8">
 
-          <div className="mb-3 flex items-center gap-2">
+          <div
+            className="
+              mb-3
+              flex
+              items-center
+              gap-2
+            "
+          >
 
             <span
               className="
@@ -321,7 +619,12 @@ Merci d'avoir regardé cette vidéo !`
               Script
             </span>
 
-            <span className="text-[11px] text-gray-400">
+            <span
+              className="
+                text-[11px]
+                text-gray-400
+              "
+            >
               {wordCount} mots
             </span>
 
@@ -348,11 +651,33 @@ Merci d'avoir regardé cette vidéo !`
             "
           >
             Écrivez votre script, sauvegardez-le,
-            puis lancez directement votre enregistrement.
+            puis lancez directement votre
+            enregistrement.
           </p>
 
         </section>
 
+        {/* ========================================= */}
+        {/* ERROR */}
+        {/* ========================================= */}
+
+        {error && (
+          <div
+            className="
+              mb-5
+              rounded-2xl
+              border
+              border-red-100
+              bg-red-50
+              px-4
+              py-3
+              text-sm
+              text-red-600
+            "
+          >
+            {error}
+          </div>
+        )}
 
         {/* ========================================= */}
         {/* TITLE */}
@@ -391,7 +716,9 @@ Merci d'avoir regardé cette vidéo !`
               type="text"
               value={title}
               onChange={(event) =>
-                setTitle(event.target.value)
+                setTitle(
+                  event.target.value
+                )
               }
               placeholder="Ex : Présentation de mon projet"
               className="
@@ -418,7 +745,6 @@ Merci d'avoir regardé cette vidéo !`
           </div>
 
         </section>
-
 
         {/* ========================================= */}
         {/* EDITOR */}
@@ -449,7 +775,13 @@ Merci d'avoir regardé cette vidéo !`
             "
           >
 
-            <div className="flex items-center gap-3">
+            <div
+              className="
+                flex
+                items-center
+                gap-3
+              "
+            >
 
               <div
                 className="
@@ -472,14 +804,18 @@ Merci d'avoir regardé cette vidéo !`
                   Votre script
                 </p>
 
-                <p className="text-[10px] text-gray-400">
+                <p
+                  className="
+                    text-[10px]
+                    text-gray-400
+                  "
+                >
                   Écrivez naturellement
                 </p>
 
               </div>
 
             </div>
-
 
             {/* AI */}
 
@@ -507,19 +843,20 @@ Merci d'avoir regardé cette vidéo !`
                 hover:bg-[#7041e8]/10
               "
             >
-              <Sparkles size={13} />
+              <WandSparkles size={13} />
               Avec l'IA
             </button>
 
           </div>
-
 
           {/* TEXTAREA */}
 
           <textarea
             value={content}
             onChange={(event) =>
-              setContent(event.target.value)
+              setContent(
+                event.target.value
+              )
             }
             placeholder={`Commencez à écrire votre script...
 
@@ -548,7 +885,6 @@ sur le téléprompteur.`}
             "
           />
 
-
           {/* FOOTER */}
 
           <div
@@ -563,18 +899,33 @@ sur le téléprompteur.`}
             "
           >
 
-            <div className="flex items-center gap-4">
+            <div
+              className="
+                flex
+                items-center
+                gap-4
+              "
+            >
 
-              <span className="text-[10px] text-gray-400">
+              <span
+                className="
+                  text-[10px]
+                  text-gray-400
+                "
+              >
                 {characterCount} caractères
               </span>
 
-              <span className="text-[10px] text-gray-400">
+              <span
+                className="
+                  text-[10px]
+                  text-gray-400
+                "
+              >
                 {wordCount} mots
               </span>
 
             </div>
-
 
             <button
               type="button"
@@ -602,55 +953,6 @@ sur le téléprompteur.`}
 
         </section>
 
-
-        {/* ========================================= */}
-        {/* CATEGORY */}
-        {/* ========================================= */}
-
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-
-          <span
-            className="
-              mr-1
-              text-[10px]
-              font-semibold
-              uppercase
-              tracking-wider
-              text-gray-400
-            "
-          >
-            Format
-          </span>
-
-          {categories.map((item) => (
-
-            <button
-              key={item}
-              type="button"
-              onClick={() => setCategory(item)}
-              className={`
-                rounded-full
-                px-3
-                py-2
-                text-[10px]
-                font-medium
-                transition
-
-                ${
-                  category === item
-                    ? "bg-black text-white shadow-sm"
-                    : "bg-white text-gray-400 hover:text-gray-700"
-                }
-              `}
-            >
-              {item}
-            </button>
-
-          ))}
-
-        </div>
-
-
         {/* ========================================= */}
         {/* ACTIONS */}
         {/* ========================================= */}
@@ -670,6 +972,7 @@ sur le téléprompteur.`}
           <button
             type="button"
             onClick={handleStartVideo}
+            disabled={isLoading}
             className="
               group
               flex
@@ -689,42 +992,54 @@ sur le téléprompteur.`}
               duration-300
               hover:-translate-y-0.5
               hover:bg-[#171717]
-              hover:shadow-[0_16px_35px_rgba(0,0,0,0.20)]
+              disabled:cursor-not-allowed
+              disabled:opacity-60
               active:scale-[0.98]
             "
           >
 
-            <span
-              className="
-                flex
-                h-8
-                w-8
-                items-center
-                justify-center
-                rounded-full
-                bg-white
-                text-black
-                transition
-                group-hover:scale-105
-              "
-            >
-              <Play
-                size={14}
-                fill="currentColor"
-                strokeWidth={0}
-              />
-            </span>
+            {isLoading ? (
+              <>
+                <Loader2
+                  size={18}
+                  className="animate-spin"
+                />
 
-            Démarrer la vidéo
+                Enregistrement...
+              </>
+            ) : (
+              <>
+                <span
+                  className="
+                    flex
+                    h-8
+                    w-8
+                    items-center
+                    justify-center
+                    rounded-full
+                    bg-white
+                    text-black
+                  "
+                >
+                  <Play
+                    size={14}
+                    fill="currentColor"
+                    strokeWidth={0}
+                  />
+                </span>
+
+                Démarrer la vidéo
+              </>
+            )}
 
           </button>
-
 
           {/* SAVE */}
 
           <button
             type="button"
             onClick={handleSave}
+            disabled={isLoading}
             className="
               flex
               items-center
@@ -743,6 +1058,8 @@ sur le téléprompteur.`}
               transition
               hover:border-black/15
               hover:bg-gray-50
+              disabled:cursor-not-allowed
+              disabled:opacity-60
               active:scale-[0.98]
             "
           >
@@ -751,6 +1068,14 @@ sur le téléprompteur.`}
               <>
                 <Check size={16} />
                 Enregistré
+              </>
+            ) : isLoading ? (
+              <>
+                <Loader2
+                  size={16}
+                  className="animate-spin"
+                />
+                Sauvegarde...
               </>
             ) : (
               <>
@@ -763,202 +1088,7 @@ sur le téléprompteur.`}
 
         </div>
 
-
-        {/* ========================================= */}
-        {/* MES SCRIPTS */}
-        {/* ========================================= */}
-
-        {scripts.length > 0 && (
-
-          <section className="mt-14">
-
-            <div
-              className="
-                mb-5
-                flex
-                items-end
-                justify-between
-              "
-            >
-
-              <div>
-
-                <p
-                  className="
-                    text-[10px]
-                    font-semibold
-                    uppercase
-                    tracking-[0.15em]
-                    text-gray-400
-                  "
-                >
-                  Bibliothèque
-                </p>
-
-                <h3
-                  className="
-                    mt-1
-                    text-xl
-                    font-bold
-                    tracking-tight
-                  "
-                >
-                  Mes scripts
-                </h3>
-
-              </div>
-
-              <span className="text-[10px] text-gray-400">
-                {scripts.length} script
-                {scripts.length > 1 ? "s" : ""}
-              </span>
-
-            </div>
-
-
-            <div
-              className="
-                grid
-                gap-3
-                sm:grid-cols-2
-                lg:grid-cols-3
-              "
-            >
-
-              {scripts.slice(0, 6).map((script) => (
-
-                <button
-                  key={script.id}
-                  type="button"
-                  onClick={() => openScript(script)}
-                  className="
-                    group
-                    rounded-[22px]
-                    border
-                    border-black/[0.06]
-                    bg-white
-                    p-5
-                    text-left
-                    shadow-sm
-                    transition-all
-                    duration-300
-                    hover:-translate-y-0.5
-                    hover:border-black/[0.12]
-                    hover:shadow-lg
-                  "
-                >
-
-                  <div className="mb-4 flex items-center justify-between">
-
-                    <div
-                      className="
-                        flex
-                        h-9
-                        w-9
-                        items-center
-                        justify-center
-                        rounded-xl
-                        bg-gray-100
-                        text-gray-500
-                        transition
-                        group-hover:bg-black
-                        group-hover:text-white
-                      "
-                    >
-                      <FileText size={15} />
-                    </div>
-
-                    <span
-                      className="
-                        rounded-full
-                        bg-gray-100
-                        px-2.5
-                        py-1
-                        text-[9px]
-                        font-medium
-                        text-gray-400
-                      "
-                    >
-                      {script.category}
-                    </span>
-
-                  </div>
-
-
-                  <h4
-                    className="
-                      truncate
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    {script.title}
-                  </h4>
-
-
-                  <p
-                    className="
-                      mt-2
-                      line-clamp-2
-                      text-[11px]
-                      leading-5
-                      text-gray-400
-                    "
-                  >
-                    {script.content}
-                  </p>
-
-
-                  <div
-                    className="
-                      mt-4
-                      flex
-                      items-center
-                      justify-between
-                    "
-                  >
-
-                    <span className="text-[9px] text-gray-300">
-                      {script.content.trim()
-                        ? script.content
-                            .trim()
-                            .split(/\s+/).length
-                        : 0}{" "}
-                      mots
-                    </span>
-
-                    <span
-                      className="
-                        text-[10px]
-                        font-medium
-                        text-gray-300
-                        transition
-                        group-hover:text-black
-                      "
-                    >
-                      Ouvrir →
-                    </span>
-
-                  </div>
-
-                </button>
-
-              ))}
-
-            </div>
-
-          </section>
-
-        )}
-
       </main>
-
-
-      {/* ========================================= */}
-      {/* MOBILE BOTTOM NAV */}
-      {/* ========================================= */}
-
-      <div className="h-4" />
 
     </div>
   );

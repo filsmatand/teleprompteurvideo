@@ -41,7 +41,7 @@ export default function Onboarding() {
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      navigate("/dashboard");
+      navigate("/login");
     }
   };
 
@@ -54,7 +54,7 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen w-full bg-[#EAEFF2] px-4 py-8 font-sans sm:px-6">
 
-      <div className="mx-auto flex min-h-[680px] w-full max-w-[390px] flex-col rounded-[30px] bg-[#F9FAFE] px-7 py-7 shadow-[0_18px_45px_rgba(40,50,60,0.08)]">
+      <div className="mx-auto flex min-h-[620px] w-full max-w-[390px] flex-col rounded-[30px] bg-[#F9FAFE] px-7 py-7 shadow-[0_18px_45px_rgba(40,50,60,0.08)]">
 
         {/* =========================
             PROGRESS DOTS
@@ -167,15 +167,14 @@ export default function Onboarding() {
               {/* SKIP */}
               <button
                 onClick={skip}
-                className="px-1 text-[10px] font-medium uppercase tracking-wide text-[#171717] transition-opacity hover:opacity-50"
-              >
+                className="px-1 text-[10px] font-medium uppercase tracking-wide text-[#171717] transition-opacity hover:opacity-50">
                 Skip
               </button>
 
               {/* NEXT */}
               <button
                 onClick={nextStep}
-                className="flex h-[48px] w-[76px] items-center justify-center rounded-full bg-[#050505] text-[10px] font-medium uppercase tracking-wide text-white transition-transform hover:scale-[1.03] active:scale-95"
+                className="flex h-[36px] w-[76px] items-center justify-center rounded-full bg-[#050505] text-[10px] font-medium uppercase tracking-wide text-white transition-transform hover:scale-[1.03] active:scale-95"
               >
                 Next
               </button>

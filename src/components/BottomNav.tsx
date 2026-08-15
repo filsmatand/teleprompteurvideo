@@ -46,20 +46,7 @@ export default function BottomNav() {
       "
     >
       {/* Conteneur extérieur */}
-      <div
-        className="
-          relative
-          rounded-[46px]
-          border
-          border-dashed
-          border-gray-300/70
-          bg-white/20
-          p-3
-          shadow-[0_18px_50px_rgba(0,0,0,0.05)]
-          backdrop-blur-[2px]
-          sm:p-4
-        "
-      >
+      <div>
         {/* Navigation principale */}
         <div
           className="
@@ -67,80 +54,98 @@ export default function BottomNav() {
             flex
             h-[72px]
             items-center
-            justify-between
             rounded-full
-            border
-            border-gray-200/80
             bg-white/90
             px-4
-            shadow-[0_10px_35px_rgba(0,0,0,0.07)]
-            backdrop-blur-2xl
             sm:h-[76px]
             sm:px-6
           "
         >
-          {/* ACCUEIL */}
-          <NavItem
-            to={navItems[0].to}
-            label={navItems[0].label}
-            icon={navItems[0].icon}
-          />
+          {/* GROUPE GAUCHE */}
+          <div
+            className="
+              flex
+              flex-1
+              items-center
+              justify-around
+              pr-10
+              sm:pr-12
+            "
+          >
+            <NavItem
+              to={navItems[0].to}
+              label={navItems[0].label}
+              icon={navItems[0].icon}
+            />
 
-          {/* SCRIPTS */}
-          <NavItem
-            to={navItems[1].to}
-            label={navItems[1].label}
-            icon={navItems[1].icon}
-          />
+            <NavItem
+              to={navItems[1].to}
+              label={navItems[1].label}
+              icon={navItems[1].icon}
+            />
+          </div>
 
           {/* BOUTON CENTRAL */}
           <NavLink
-            to="/new-script"
-            aria-label="Créer un script"
+          to="/script/new"
+          aria-label="Créer un script"
+          className="
+            absolute
+            left-1/2
+            top-1/2
+            z-10
+            flex
+            h-[58px]
+            w-[58px]
+            -translate-x-1/2
+            -translate-y-1/2
+            items-center
+            justify-center
+            rounded-full
+            bg-[#252525]
+            text-white
+            shadow-[0_8px_22px_rgba(0,0,0,0.18)]
+            ring-[4px]
+            ring-white
+            transition-all
+            duration-300
+            ease-out
+            hover:scale-105
+            hover:bg-[#333333]
+            hover:shadow-[0_12px_28px_rgba(0,0,0,0.22)]
+            active:scale-90
+          "
+        >
+          <Plus
+            size={25}
+            strokeWidth={2.2}
+            className="text-white"
+          />
+        </NavLink>
+
+          {/* GROUPE DROITE */}
+          <div
             className="
-              absolute
-              left-1/2
-              top-1/2
               flex
-              h-[60px]
-              w-[60px]
-              -translate-x-1/2
-              -translate-y-1/2
+              flex-1
               items-center
-              justify-center
-              rounded-full
-              bg-black
-              text-white
-              shadow-[0_10px_28px_rgba(0,0,0,0.20)]
-              ring-[5px]
-              ring-white
-              transition-all
-              duration-300
-              ease-out
-              hover:scale-105
-              hover:shadow-[0_14px_35px_rgba(0,0,0,0.25)]
-              active:scale-90
+              justify-around
+              pl-10
+              sm:pl-12
             "
           >
-            <Plus
-              size={26}
-              strokeWidth={2.2}
+            <NavItem
+              to={navItems[2].to}
+              label={navItems[2].label}
+              icon={navItems[2].icon}
             />
-          </NavLink>
 
-          {/* ACTIVITÉ */}
-          <NavItem
-            to={navItems[2].to}
-            label={navItems[2].label}
-            icon={navItems[2].icon}
-          />
-
-          {/* PROFIL */}
-          <NavItem
-            to={navItems[3].to}
-            label={navItems[3].label}
-            icon={navItems[3].icon}
-          />
+            <NavItem
+              to={navItems[3].to}
+              label={navItems[3].label}
+              icon={navItems[3].icon}
+            />
+          </div>
         </div>
       </div>
     </nav>
@@ -152,7 +157,15 @@ export default function BottomNav() {
 /* ITEM DE NAVIGATION */
 /* -------------------------------- */
 
-function NavItem({ to, label, icon: Icon }) {
+function NavItem({
+  to,
+  label,
+  icon: Icon,
+}: {
+  to: string;
+  label: string;
+  icon: React.ElementType;
+}) {
   return (
     <NavLink
       to={to}
